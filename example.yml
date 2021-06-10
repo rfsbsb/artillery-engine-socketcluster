@@ -1,0 +1,16 @@
+config:
+  target: "wss://http://localhost:1337/configs/"
+  socketcluster:
+  phases:
+    - duration: 10 # Run scenario for 10 seconds
+      arrivalCount: 20 # Create 20 virtual users per scenario
+scenarios:
+  - engine: "socketcluster"
+    flow:
+      - emit:
+          channel: "add user"
+          data: "John Doe"
+      - emit:
+          channel: "new message"
+          data: "Hello! {{ $randomString() }}"
+      - think: 5 # do nothing for 5 seconds, then disconnect
