@@ -7,10 +7,10 @@ config:
 scenarios:
   - engine: "socketcluster"
     flow:
-      - emit:
-          channel: "add user"
+      - send:
           data: "John Doe"
-      - emit:
-          channel: "new message"
-          data: "Hello! {{ $randomString() }}"
+          options: 
+      - subscribe:
+          channel: "channel name"
+          options: 
       - think: 5 # do nothing for 5 seconds, then disconnect
