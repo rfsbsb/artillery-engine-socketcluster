@@ -9,10 +9,22 @@ const template = engineUtil.template;
 
 module.exports = class SocketCusterEngine {
 
+  /**
+   * Create a SocketCusterEngine instance
+   * 
+   * @param {object} script The test script
+   */
   constructor(script) {
     this.config = script.config;
   }
 
+  /**
+   * Create a scenario
+   * 
+   * @param {object} scenarioSpec The scenario specification
+   * @param {EventEmitter} ee The artillery event emitter
+   * @returns {function} The compiled list of tasks
+   */
   createScenario(scenarioSpec, ee) {
     let tasks = _.map(scenarioSpec.flow, (rs) => {
       if (rs.think) {
@@ -25,6 +37,14 @@ module.exports = class SocketCusterEngine {
     return this.compile(tasks, scenarioSpec.flow, ee);
   }
 
+  /**
+   * Create a scenario step
+   * 
+   * @private
+   * @param {object} requestSpec The step's specification
+   * @param {EventEmitter} ee The artillery event emitter
+   * @returns {function} The steps's function
+   */
   createStep(requestSpec, ee) {
     if (requestSpec.loop) {
       let steps = _.map(requestSpec.loop, (rs) => {
@@ -78,7 +98,13 @@ module.exports = class SocketCusterEngine {
     }
   }
 
-  createClient(context, callback) {
+  /**
+   * Create a virtual user
+   * 
+   * @param {object} context The context
+   * @param {function} callback The callback to invoke on success or failure
+   */
+  createVirtualUser(context, callback) {
     const ee = context.ee;
     const config = this.config;
     const tls = config.tls || {};
@@ -100,13 +126,21 @@ module.exports = class SocketCusterEngine {
     }
   }
 
+  /**
+   * Compile the lsit of tasks
+   * 
+   * @param {Array} tasks The tasks to perform
+   * @param {object} scenarioSpec The scenario specification
+   * @param {EventEmitter} ee The artillery event emitter
+   * @returns {function} A function that runs the tasks in sequence
+   */
   compile(tasks, scenarioSpec, ee) {
     return (initialContext, callback) => {
       initialContext._successCount = 0;
       initialContext.ee = ee;
 
       let steps = _.flatten([
-        this.createClient.bind(this, initialContext),
+        this.createVirtualUser.bind(this, initialContext),
         tasks
       ]);
 
@@ -124,7 +158,17 @@ module.exports = class SocketCusterEngine {
     };
   }
 
-  capture(data, params, context, callback) {
+  /**
+   * Capture or match a variable in a task's returned data
+   * 
+   * @private
+   * @param {*} data The data from which to capture or match a variable
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   * @returns 
+   */
+   captureOrMatch(data, params, context, callback) {
     debug('SC capture: %s', data);
 
     if (!data) {
@@ -186,6 +230,17 @@ module.exports = class SocketCusterEngine {
     )
   }
 
+  /**
+   * Helper that invokes a sc method from a tasks that doesn't
+   * need to capture or match variables in the returned value
+   * 
+   * @param {string} method The sc method's name
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   * @param  {...any} args Arguments to pass to the sc method
+   * @returns 
+   */
   invokeSCMethodWithoutCapture(method, params, context, callback, ...args) {
     const ee = context.ee;
 
@@ -199,66 +254,211 @@ module.exports = class SocketCusterEngine {
     return callback(null, context);
   }
 
-  sc_listener(params, context, callback) {
-    return callback(null, context);
+  /**
+   * Implementation of the connect task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
+  sc_connect(params, context, callback) {
+    context.socket.connect();
+
+    // Listen for connection
+    (async () => {
+      await context.socket.listener('connect').once();
+      callback(null, context);
+    })();
+
+    // Listen for connection error once
+    (async () => {
+      const event = await context.socket.listener('connectAbort').once();
+      callback(event, null);
+    })();
   }
 
+  /**
+   * Implementation of the listener task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
+  sc_listener(params, context, callback) {
+    const listener = context.socket.listener(params.eventName);
+
+    if (params.capture || params.match) {
+      (async () => {
+        const event = await listener.once();
+        this.captureOrMatch(event, params, context, callback);
+      })();
+    }
+    else {
+      return callback(null, context);
+    }
+  }
+
+  /**
+   * Implementation of the closeListener task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeListener(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the closeAllListeners task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeAllListeners(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killListener task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killListener(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllListeners task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllListeners(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the receiver task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_receiver(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the closeReceiver task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeReceiver(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the closeAllReceivers task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeAllReceivers(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killReceiver task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killReceiver(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllReceivers task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllReceivers(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the procedure task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_procedure(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the closeProcedure task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeProcedure(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the closeAllProcedures( task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeAllProcedures(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killProcedure task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killProcedure(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllProcedures task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllProcedures(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the transmit task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_transmit(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'transmit',
@@ -267,6 +467,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the invoke task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_invoke(params, context, callback) {
     const ee = context.ee;
 
@@ -279,8 +486,8 @@ module.exports = class SocketCusterEngine {
       context.socket.invoke(params.procedureName, params.data)
         .then((result) => {
           // only process response if we're capturing
-          if (params.capture) {
-            this.capture(result, params, context, callback);
+          if (params.capture || params.match) {
+            this.captureOrMatch(result, params, context, callback);
           }
           else {
             callback(null, context);
@@ -292,6 +499,13 @@ module.exports = class SocketCusterEngine {
     })();
   }
 
+  /**
+   * Implementation of the send task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_send(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'send',
@@ -300,6 +514,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the authenticate task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_authenticate(params, context, callback) {
     const ee = context.ee;
 
@@ -317,6 +538,13 @@ module.exports = class SocketCusterEngine {
       });
   }
 
+  /**
+   * Implementation of the deauthenticate task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_deauthenticate(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'deauthenticate',
@@ -324,19 +552,28 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the transmitPublish task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_transmitPublish(params, context, callback) {
-    const ee = context.ee;
-
-    ee.emit('counter', 'engine.socketcluster.transmitPublish', 1);
-    ee.emit('rate', 'engine.socketcluster.transmitPublish_rate');
-
-    debug('SC transmitPublish: %s', JSON.stringify(params));
-
-    context.socket.transmitPublish(params.channelName, params.data);
-
-    return callback(null, context);
+    return this.invokeSCMethodWithoutCapture(
+      'transmitPublish',
+      params, context, callback,
+      params.channelName, params.data
+    );
   }
 
+  /**
+   * Implementation of the invokePublish task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_invokePublish(params, context, callback) {
     const ee = context.ee;
 
@@ -349,8 +586,8 @@ module.exports = class SocketCusterEngine {
       context.socket.invokePublish(params.channelName, params.data)
         .then((result) => {
           // only process response if we're capturing
-          if (params.capture) {
-            this.capture(result, params, context, callback);
+          if (params.capture || params.match) {
+            this.captureOrMatch(result, params, context, callback);
           }
           else {
             callback(null, context);
@@ -362,6 +599,13 @@ module.exports = class SocketCusterEngine {
     })();
   }
 
+  /**
+   * Implementation of the subscribe task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_subscribe(params, context, callback) {
     const ee = context.ee;
 
@@ -372,13 +616,10 @@ module.exports = class SocketCusterEngine {
 
     const channel = context.socket.subscribe(params.channel, params.options || {});
 
-    // only process response if we're capturing
-    if (params.capture) {
-      // Capture data
+    if (params.capture || params.match) {
       (async () => {
-        for await (let data of channel) {
-          this.capture(data, params, context, callback);
-        }
+        const data = channel.once();
+        this.captureOrMatch(data, params, context, callback);
       })();
     }
     else {
@@ -386,6 +627,13 @@ module.exports = class SocketCusterEngine {
     }
   }
 
+  /**
+   * Implementation of the unsubscribe task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_unsubscribe(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'unsubscribe',
@@ -394,6 +642,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the closeChannel task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeChannel(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'closeChannel',
@@ -402,6 +657,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the channelCloseOutput task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_channelCloseOutput(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'channelCloseOutput',
@@ -410,6 +672,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the channelCloseAllListeners task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_channelCloseAllListeners(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'channelCloseAllListeners',
@@ -418,6 +687,13 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the closeAllChannels task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_closeAllChannels(params, context, callback) {
     return this.invokeSCMethodWithoutCapture(
       'closeAllChannels',
@@ -425,52 +701,79 @@ module.exports = class SocketCusterEngine {
     );
   }
 
+  /**
+   * Implementation of the killChannel task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killChannel(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the channelKillOutput task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_channelKillOutput(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the channelKillAllListeners task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_channelKillAllListeners(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllChannels task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllChannels(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllChannelOutputs task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllChannelOutputs(params, context, callback) {
     return callback(null, context);
   }
 
+  /**
+   * Implementation of the killAllChannelListeners task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_killAllChannelListeners(params, context, callback) {
     return callback(null, context);
   }
 
-  sc_connect(params, context, callback) {
-    context.socket.connect();
-
-    // Listen for connection
-    (async () => {
-      for await (let event of context.socket.listener('connect')) {
-        context.socket.closeListener('connect');
-        callback(null, context);
-      }
-    })();
-
-    // Listen for connection error once
-    (async () => {
-      for await (let event of context.socket.listener('connectAbort')) {
-        context.socket.closeListener('connectAbort');
-        debug(event);
-        ee.emit('error', `${event.code}:${event.reason}`);
-        callback(event, null);
-      }
-    })();
-  }
-
+  /**
+   * Implementation of the disconnect task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
   sc_disconnect(context) {
     if (context && context.socket) {
       context.socket.disconnect();
