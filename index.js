@@ -496,7 +496,7 @@ module.exports = class SocketCusterEngine {
 
     if (params.capture || params.match) {
       (async () => {
-        const data = channel.once();
+        const data = await channel.once();
         this.captureOrMatch(data, params, context, callback);
       })();
     }
