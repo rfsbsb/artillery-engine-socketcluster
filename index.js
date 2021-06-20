@@ -174,15 +174,12 @@ module.exports = class SocketCusterEngine {
     const options = _.extend({
       hostname: config.target
     }, tls, config.socketcluster);
-    const auto_connect = !('autoConnect' in options) || options.autoConnect;
+    const auto_create = !('autoCreate' in options) || options.autoCreate;
 
     ee.emit('started');
 
-    options.autoConnect = false;
-    context.socket = socketclusterClient.create(options);
-
-    if (auto_connect) {
-      this.sc_connect({}, context, callback);
+    if (auto_create) {
+      this.sc_create(options, context, callback);
     }
     else {
       callback(null, context);
@@ -319,6 +316,23 @@ module.exports = class SocketCusterEngine {
     });
 
     context.socket[method](...args_values);
+
+    return callback(null, context);
+  }
+
+  /**
+   * Implementation of the create task
+   * 
+   * @param {object} params The tasks parameters
+   * @param {object} context The tasks context
+   * @param {function} callback The tasks callback
+   */
+  sc_create(params, context, callback) {
+    context.socket = socketclusterClient.create(params);
+
+    if (!('autoConnect' in params) || params.autoConnect) {
+      return this.sc_connect({}, context, callback);
+    }
 
     return callback(null, context);
   }
