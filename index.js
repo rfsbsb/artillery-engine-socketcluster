@@ -127,15 +127,27 @@ module.exports = class SocketCusterEngine {
       // Check if the sc method is implemented
       const fn = `sc_${key}`;
       if (fn in this && _.isFunction(this[fn])) {
-        method = this[fn].bind(this, requestSpec[key]);
+        method = (context, callback) => {
+          this[fn](
+            template(requestSpec[key], context),
+            context,
+            callback
+          );
+        };
         return true;
       }
       
       // if no implementatio found, check if the method is listed
       // in scMethodsWithoutCapture
       if (key in this.constructor.scMethodsWithoutCapture) {
-        const args = this.constructor.scMethodsWithoutCapture[key];
-        method = this.invokeSCMethodWithoutCapture.bind(this, key, args, requestSpec[key]);
+        method = (context, callback) => {
+          this.invokeSCMethodWithoutCapture(
+            key,
+            this.constructor.scMethodsWithoutCapture[key],
+            template(requestSpec[key], context),
+            callback
+          );
+        };
         return true;
       }
     });
@@ -222,7 +234,7 @@ module.exports = class SocketCusterEngine {
   captureOrMatch(data, params, context, callback) {
     const ee = context.ee;
 
-    debug('SC capture: %s', data);
+    debug('SC capture or match: %s', data);
 
     if (!data) {
       return callback(new Error('Empty response from SC server'), context);
