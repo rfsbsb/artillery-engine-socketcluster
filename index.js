@@ -11,10 +11,10 @@ module.exports = class SocketCusterEngine {
 
   /**
    * A list of SC methods that do not return anything.
-   * 
+   *
    * Those methods cannot capture or match a result,
    * and use the common helper method invokeSCMethodWithoutCapture.
-   * 
+   *
    * @type {object}
    */
   static scMethodsWithoutCapture = {
@@ -49,16 +49,17 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Create a SocketCusterEngine instance
-   * 
+   *
    * @param {object} script The test script
    */
   constructor(script) {
     this.config = script.config;
+    this._users = 0;
   }
 
   /**
    * Create a scenario
-   * 
+   *
    * @param {object} scenarioSpec The scenario specification
    * @param {EventEmitter} ee The artillery event emitter
    * @returns {function} The compiled list of tasks
@@ -77,7 +78,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Create a scenario step
-   * 
+   *
    * @private
    * @param {object} requestSpec The step's specification
    * @param {EventEmitter} ee The artillery event emitter
@@ -136,7 +137,7 @@ module.exports = class SocketCusterEngine {
         };
         return true;
       }
-      
+
       // if no implementatio found, check if the method is listed
       // in scMethodsWithoutCapture
       if (key in this.constructor.scMethodsWithoutCapture) {
@@ -163,7 +164,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Create a virtual user
-   * 
+   *
    * @param {object} context The context
    * @param {function} callback The callback to invoke on success or failure
    */
@@ -187,8 +188,8 @@ module.exports = class SocketCusterEngine {
   }
 
   /**
-   * Compile the lsit of tasks
-   * 
+   * Compile the list of tasks
+   *
    * @param {Array} tasks The tasks to perform
    * @param {object} scenarioSpec The scenario specification
    * @param {EventEmitter} ee The artillery event emitter
@@ -220,13 +221,13 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Capture or match a variable in a task's returned data
-   * 
+   *
    * @private
    * @param {*} data The data from which to capture or match a variable
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
-   * @returns 
+   * @returns
    */
   captureOrMatch(data, params, context, callback) {
     const ee = context.ee;
@@ -295,13 +296,13 @@ module.exports = class SocketCusterEngine {
   /**
    * Helper that invokes a sc method from a tasks that doesn't
    * need to capture or match variables in the returned value
-   * 
+   *
    * @param {string} method The sc method's name
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
    * @param  {...any} args Arguments to pass to the sc method
-   * @returns 
+   * @returns
    */
   invokeSCMethodWithoutCapture(method, args, params, context, callback) {
     const ee = context.ee;
@@ -322,7 +323,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the create task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -339,7 +340,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the connect task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -351,6 +352,9 @@ module.exports = class SocketCusterEngine {
     (async () => {
       await context.socket.listener('connect').once();
       callback(null, context);
+
+      this._users++;
+      context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
     })();
 
     // Listen for connection error once
@@ -362,7 +366,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the listener task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -383,7 +387,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the receiver task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -400,7 +404,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the procedure task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -417,7 +421,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the invoke task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -449,7 +453,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the authenticate task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -473,7 +477,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the invokePublish task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -505,7 +509,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the subscribe task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -533,7 +537,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the subscriptions task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -550,7 +554,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the isSubscribed task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -570,7 +574,7 @@ module.exports = class SocketCusterEngine {
 
   /**
    * Implementation of the disconnect task
-   * 
+   *
    * @param {object} params The tasks parameters
    * @param {object} context The tasks context
    * @param {function} callback The tasks callback
@@ -578,6 +582,9 @@ module.exports = class SocketCusterEngine {
   sc_disconnect(context) {
     if (context && context.socket) {
       context.socket.disconnect();
+
+      this._users--;
+      context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
     }
   }
 }
