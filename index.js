@@ -427,6 +427,7 @@ module.exports = class SocketCusterEngine {
    * @param {function} callback The tasks callback
    */
   sc_invoke(params, context, callback) {
+    const startedAt = process.hrtime();
     const ee = context.ee;
 
     ee.emit('counter', 'engine.socketcluster.invoke', 1);
@@ -447,6 +448,11 @@ module.exports = class SocketCusterEngine {
         })
         .catch((err) => {
           callback(err, context);
+        })
+        .finally(() => {
+          const endedAt = process.hrtime(startedAt);
+          const delta = (endedAt[0] * 1e9) + endedAt[1];
+          ee.emit('histogram', 'engine.socketcluster.response_time', delta / 1e6);
         });
     })();
   }
@@ -459,6 +465,7 @@ module.exports = class SocketCusterEngine {
    * @param {function} callback The tasks callback
    */
   sc_authenticate(params, context, callback) {
+    const startedAt = process.hrtime();
     const ee = context.ee;
 
     ee.emit('counter', 'engine.socketcluster.authenticate', 1);
@@ -472,6 +479,11 @@ module.exports = class SocketCusterEngine {
       })
       .catch((err) => {
         callback(err, context);
+      })
+      .finally(() => {
+        const endedAt = process.hrtime(startedAt);
+        const delta = (endedAt[0] * 1e9) + endedAt[1];
+        ee.emit('histogram', 'engine.socketcluster.response_time', delta / 1e6);
       });
   }
 
@@ -483,6 +495,7 @@ module.exports = class SocketCusterEngine {
    * @param {function} callback The tasks callback
    */
   sc_invokePublish(params, context, callback) {
+    const startedAt = process.hrtime();
     const ee = context.ee;
 
     ee.emit('counter', 'engine.socketcluster.invokePublish', 1);
@@ -490,21 +503,24 @@ module.exports = class SocketCusterEngine {
 
     debug('SC invokePublish: %s', JSON.stringify(params));
 
-    (async () => {
-      context.socket.invokePublish(params.channelName, params.data)
-        .then((result) => {
-          // only process response if we're capturing
-          if (params.capture || params.match) {
-            this.captureOrMatch(result, params, context, callback);
-          }
-          else {
-            callback(null, context);
-          }
-        })
-        .catch((err) => {
-          callback(err, context);
-        });
-    })();
+    context.socket.invokePublish(params.channelName, params.data)
+      .then((result) => {
+        // only process response if we're capturing
+        if (params.capture || params.match) {
+          this.captureOrMatch(result, params, context, callback);
+        }
+        else {
+          callback(null, context);
+        }
+      })
+      .catch((err) => {
+        callback(err, context);
+      })
+      .finally(() => {
+        const endedAt = process.hrtime(startedAt);
+        const delta = (endedAt[0] * 1e9) + endedAt[1];
+        ee.emit('histogram', 'engine.socketcluster.response_time', delta / 1e6);
+      });
   }
 
   /**
