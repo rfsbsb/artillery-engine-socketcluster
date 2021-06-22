@@ -352,16 +352,23 @@ module.exports = class SocketCusterEngine {
 
     // Listen for connection
     (async () => {
-      await context.socket.listener('connect').once();
-      callback(null, context);
+      try {
+        await context.socket.listener('connect').once();
+        context.socket.killListener('connectAbort');
+        callback(null, context);
 
-      this._users++;
-      context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
+        this._users++;
+        context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
+      }
+      catch (error) {
+        callback(error, null);
+      }
     })();
 
     // Listen for connection error once
     (async () => {
       const event = await context.socket.listener('connectAbort').once();
+      context.socket.killListener('connect');
       callback(event, null);
     })();
   }
