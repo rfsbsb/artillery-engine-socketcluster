@@ -171,16 +171,12 @@ module.exports = class SocketCusterEngine {
   createVirtualUser(context, callback) {
     const ee = context.ee;
     const config = this.config;
-    const tls = config.tls || {};
-    const options = _.extend({
-      hostname: config.target
-    }, tls, config.socketcluster);
-    const auto_create = !('autoCreate' in options) || options.autoCreate;
+    const auto_create = !('autoCreate' in config.socketcluster) || config.socketcluster.autoCreate;
 
     ee.emit('started');
 
     if (auto_create) {
-      this.sc_create(options, context, callback);
+      this.sc_create({}, context, callback);
     }
     else {
       callback(null, context);
@@ -329,9 +325,15 @@ module.exports = class SocketCusterEngine {
    * @param {function} callback The tasks callback
    */
   sc_create(params, context, callback) {
-    context.socket = socketclusterClient.create(params);
+    const config = this.config;
+    const tls = config.tls || {};
+    const options = _.extend({
+      hostname: config.target
+    }, tls, config.socketcluster, params);
 
-    if (!('autoConnect' in params) || params.autoConnect) {
+    context.socket = socketclusterClient.create(options);
+
+    if (!('autoConnect' in options) || options.autoConnect) {
       return this.sc_connect({}, context, callback);
     }
 
