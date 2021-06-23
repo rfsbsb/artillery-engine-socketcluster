@@ -237,7 +237,8 @@ module.exports = class SocketCusterEngine {
     let fauxResponse;
     try {
       fauxResponse = { body: JSON.parse(data) };
-    } catch (err) {
+    }
+    catch (error) {
       fauxResponse = { body: data }
     }
 
@@ -245,10 +246,10 @@ module.exports = class SocketCusterEngine {
       params,
       fauxResponse,
       context,
-      (err, result) => {
-        if (err) {
-          ee.emit('error', err.message || err.code);
-          return callback(err, context);
+      (error, result) => {
+        if (error) {
+          ee.emit('error', error.message || error.code);
+          return callback(error, context);
         }
 
         const { captures = {}, matches = {} } = result
@@ -348,6 +349,8 @@ module.exports = class SocketCusterEngine {
    * @param {function} callback The tasks callback
    */
   sc_connect(params, context, callback) {
+    const ee = context.ee;
+
     context.socket.connect();
 
     // Listen for connection
@@ -361,15 +364,18 @@ module.exports = class SocketCusterEngine {
         context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
       }
       catch (error) {
+        ee.emit('error', error.message);
         callback(error, null);
       }
     })();
 
     // Listen for connection error once
     (async () => {
-      const event = await context.socket.listener('connectAbort').once();
+      const error = await context.socket.listener('connectAbort').once();
       context.socket.killListener('connect');
-      callback(event, null);
+
+      ee.emit('error', error.code || error.reason);
+      callback(error, null);
     })();
   }
 
@@ -455,8 +461,9 @@ module.exports = class SocketCusterEngine {
             callback(null, context);
           }
         })
-        .catch((err) => {
-          callback(err, context);
+        .catch((error) => {
+          ee.emit('error', error.message);
+          callback(error, context);
         })
         .finally(() => {
           const endedAt = process.hrtime(startedAt);
@@ -486,8 +493,9 @@ module.exports = class SocketCusterEngine {
       .then(() => {
         callback(null, context);
       })
-      .catch((err) => {
-        callback(err, context);
+      .catch((error) => {
+        ee.emit('error', error.message);
+        callback(error, context);
       })
       .finally(() => {
         const endedAt = process.hrtime(startedAt);
@@ -522,8 +530,9 @@ module.exports = class SocketCusterEngine {
           callback(null, context);
         }
       })
-      .catch((err) => {
-        callback(err, context);
+      .catch((error) => {
+        ee.emit('error', error.message);
+        callback(error, context);
       })
       .finally(() => {
         const endedAt = process.hrtime(startedAt);
