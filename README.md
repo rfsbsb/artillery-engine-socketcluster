@@ -10,7 +10,7 @@ Tested with SocketCluster v16.0.1.
 
 ```
 # If Artillery is installed globally:
-npm install -g artillery-engine-socketcluster
+npm install -g git+https://github.com/philharmoniedeparis/artillery-engine-socketcluster.git
 ```
 
 ### Define a scenario
