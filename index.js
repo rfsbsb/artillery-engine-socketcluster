@@ -364,7 +364,7 @@ module.exports = class SocketCusterEngine {
         context.ee.emit('histogram', 'engine.socketcluster.users', this._users);
       }
       catch (error) {
-        ee.emit('error', error.message);
+        ee.emit('error', `${error.name}: ${error.message}`);
         callback(error, null);
       }
     })();
@@ -374,7 +374,7 @@ module.exports = class SocketCusterEngine {
       const error = await context.socket.listener('connectAbort').once();
       context.socket.killListener('connect');
 
-      ee.emit('error', error.code || error.reason);
+      ee.emit('error', `${error.code}: ${error.reason}`);
       callback(error, null);
     })();
   }
@@ -462,7 +462,7 @@ module.exports = class SocketCusterEngine {
           }
         })
         .catch((error) => {
-          ee.emit('error', error.message);
+          ee.emit('error', `${error.name}: ${error.message}`);
           callback(error, context);
         })
         .finally(() => {
@@ -494,7 +494,7 @@ module.exports = class SocketCusterEngine {
         callback(null, context);
       })
       .catch((error) => {
-        ee.emit('error', error.message);
+        ee.emit('error', `${error.name}: ${error.message}`);
         callback(error, context);
       })
       .finally(() => {
@@ -531,7 +531,7 @@ module.exports = class SocketCusterEngine {
         }
       })
       .catch((error) => {
-        ee.emit('error', error.message);
+        ee.emit('error', `${error.name}: ${error.message}`);
         callback(error, context);
       })
       .finally(() => {
