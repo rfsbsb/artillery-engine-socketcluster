@@ -146,6 +146,7 @@ module.exports = class SocketCusterEngine {
             key,
             this.constructor.scMethodsWithoutCapture[key],
             template(requestSpec[key], context),
+            context,
             callback
           );
         };
